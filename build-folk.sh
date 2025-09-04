@@ -1,73 +1,80 @@
-name: Folk Live-Build
+#!/bin/bash
+set -euo pipefail
 
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+# ==============================
+# Folk Live-Build Local Script
+# ==============================
+# Author: Andrés
+# Purpose: Run a Folk live-build with detailed logging and step numbers.
+# ==============================
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    container:
-      image: debian:bookworm
+# Directories
+BUILD_DIR="${HOME}/folk-build"
+OUTPUT_DIR="${HOME}/folk-output"
+CHROOT_DIR="${HOME}/folk-chroot"
 
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+log() { echo "[${1}] $2"; }
 
-      - name: Install dependencies
-        run: |
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            git build-essential live-build debootstrap \
-            systemd-container squashfs-tools xorriso \
-            genisoimage parted dosfstools zip sudo \
-            procps uidmap fakeroot eatmydata \
-          && rm -rf /var/lib/apt/lists/*
+mkdir -p "$BUILD_DIR" "$OUTPUT_DIR" "$CHROOT_DIR"
 
-      - name: Prepare Folk repo
-        run: |
-          mkdir -p /build
-          cd /build
-          if [ ! -d folk ]; then
-            git clone https://github.com/FolkComputer/folk.git
-          else
-            cd folk && git pull
-          fi
-          cd folk/live-build
-          git submodule update --init
+# STEP0: Install required packages (Debian/Ubuntu)
+log "STEP0" "Installing required packages"
+sudo apt-get update
+sudo apt-get install -y \
+    git \
+    build-essential \
+    live-build \
+    debootstrap \
+    systemd-container \
+    squashfs-tools \
+    xorriso \
+    genisoimage \
+    parted \
+    dosfstools \
+    zip \
+    sudo \
+    procps \
+    uidmap \
+    fakeroot \
+    eatmydata
 
-      - name: Build apriltag library
-        run: make -C config/includes.chroot_after_packages/home/folk/apriltag libapriltag.a libapriltag.so
+# STEP1: Clone Folk repository
+log "STEP1" "Cloning Folk repository"
+if [ ! -d "$BUILD_DIR/folk" ]; then
+    git clone https://github.com/FolkComputer/folk.git "$BUILD_DIR/folk"
+else
+    log "INFO" "Folk repo already exists, pulling latest changes"
+    git -C "$BUILD_DIR/folk" pull
+fi
 
-      - name: Configure Debian archive URLs for chroot
-        run: |
-          mkdir -p config/archives
-          cat <<'EOF' > config/archives/bookworm.list.chroot
-deb http://archive.debian.org/debian bookworm main contrib non-free
-deb http://archive.debian.org/debian bookworm-updates main contrib non-free
-deb http://archive.debian.org/debian-security bookworm-security main contrib non-free
-EOF
-          echo 'Acquire::Check-Valid-Until "false";' > config/archives/99disable-check-valid-until.chroot
+# STEP2: Initialize submodules
+log "STEP2" "Initializing git submodules"
+git -C "$BUILD_DIR/folk" submodule update --init --recursive
 
-      - name: Build live image
-        run: |
-          set -eux
-          # Clean previous build
-          lb clean
-          # Configure lb
-          lb config
-          # Bootstrap
-          lb bootstrap
-          # Build
-          lb build
-          # Copy outputs
-          mkdir -p /build/output
-          cp -r ./live-image-* ./binary* /build/output/ || true
+# STEP3: Build apriltag library
+log "STEP3" "Building apriltag library"
+make -C "$BUILD_DIR/folk/live-build/config/includes.chroot_after_packages/home/folk/apriltag" libapriltag.a libapriltag.so
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: folk-live-build
-          path: /build/output
+# STEP4: Clean previous live-build
+log "STEP4" "Cleaning previous live-build"
+cd "$BUILD_DIR/folk/live-build"
+lb clean
+
+# STEP5: Configure live-build
+log "STEP5" "Configuring live-build"
+lb config
+
+# STEP6: Bootstrap live-build
+log "STEP6" "Bootstrapping live-build"
+lb bootstrap
+
+# STEP7: Run live-build
+log "STEP7" "Building live image"
+lb build
+
+# STEP8: Collect outputs
+log "STEP8" "Copying build outputs"
+cp -r "$BUILD_DIR/folk/live-build/live-image-*" "$OUTPUT_DIR/" || true
+cp -r "$BUILD_DIR/folk/live-build/binary*" "$OUTPUT_DIR/" || true
+
+log "DONE" "Folk live-build finished successfully!"
