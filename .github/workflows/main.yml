@@ -13,13 +13,11 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      # STEP0: Checkout repo and submodules
       - name: [STEP0] Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # STEP1: Install build dependencies
       - name: [STEP1] Install required packages
         run: |
           set -e
@@ -43,7 +41,6 @@ jobs:
             fakeroot \
             eatmydata
 
-      # STEP2: Build apriltag library (solid part)
       - name: [STEP2] Build apriltag library
         run: |
           set -e
@@ -51,7 +48,6 @@ jobs:
           cd folk/live-build/config/includes.chroot_after_packages/home/folk/apriltag
           make libapriltag.a libapriltag.so
 
-      # STEP3: Clean previous live-build
       - name: [STEP3] Clean live-build
         run: |
           set -e
@@ -59,7 +55,6 @@ jobs:
           echo "[INFO] Cleaning previous live-build..."
           lb clean
 
-      # STEP4: Configure live-build
       - name: [STEP4] Configure live-build
         run: |
           set -e
@@ -67,7 +62,6 @@ jobs:
           echo "[INFO] Configuring live-build..."
           lb config
 
-      # STEP5: Bootstrap live-build
       - name: [STEP5] Bootstrap live-build
         run: |
           set -e
@@ -75,7 +69,6 @@ jobs:
           echo "[INFO] Bootstrapping live-build..."
           sudo lb bootstrap
 
-      # STEP6: Build live-build
       - name: [STEP6] Build live-build
         run: |
           set -e
@@ -83,7 +76,6 @@ jobs:
           echo "[INFO] Running lb build..."
           sudo lb build
 
-      # STEP7: Collect and upload artifacts
       - name: [STEP7] Upload built images
         uses: actions/upload-artifact@v4
         with:
