@@ -1,6 +1,5 @@
 name: Folk Live-Build
 
-# Trigger manually or on push to main
 on:
   workflow_dispatch:
   push:
@@ -9,77 +8,13 @@ on:
 
 jobs:
   build:
-    name: Build Folk Live Image
     runs-on: ubuntu-22.04
-
     steps:
-      - name: [STEP0] Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: [STEP1] Install required packages
+      - name: Run Folk Live-Build
         run: |
-          set -e
-          echo "[INFO] Installing packages..."
-          sudo apt-get update
-          sudo apt-get install -y \
-            git \
-            build-essential \
-            live-build \
-            debootstrap \
-            systemd-container \
-            squashfs-tools \
-            xorriso \
-            genisoimage \
-            parted \
-            dosfstools \
-            zip \
-            sudo \
-            procps \
-            uidmap \
-            fakeroot \
-            eatmydata
-
-      - name: [STEP2] Build apriltag library
-        run: |
-          set -e
-          echo "[INFO] Building apriltag..."
-          cd folk/live-build/config/includes.chroot_after_packages/home/folk/apriltag
-          make libapriltag.a libapriltag.so
-
-      - name: [STEP3] Clean live-build
-        run: |
-          set -e
-          cd folk/live-build
-          echo "[INFO] Cleaning previous live-build..."
-          lb clean
-
-      - name: [STEP4] Configure live-build
-        run: |
-          set -e
-          cd folk/live-build
-          echo "[INFO] Configuring live-build..."
-          lb config
-
-      - name: [STEP5] Bootstrap live-build
-        run: |
-          set -e
-          cd folk/live-build
-          echo "[INFO] Bootstrapping live-build..."
-          sudo lb bootstrap
-
-      - name: [STEP6] Build live-build
-        run: |
-          set -e
-          cd folk/live-build
-          echo "[INFO] Running lb build..."
-          sudo lb build
-
-      - name: [STEP7] Upload built images
-        uses: actions/upload-artifact@v4
-        with:
-          name: folk-live-build
-          path: |
-            folk/live-build/live-image-*
-            folk/live-build/binary*
+          chmod +x build-folk.sh
+          ./build-folk.sh
